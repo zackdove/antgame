@@ -117,22 +117,24 @@ void userAnt(chanend fromButtons, chanend toVisualiser, chanend toController) {
     fromButtons :> buttonInput; //expect values 13(L) and 14(R)
     ////////////////////////////////////////////////////////////
     if (buttonInput == 13){
-        //move left
-        attemptedAntPosition = userAntPosition + 1;
+        //move right
+        attemptedAntPosition = (userAntPosition + 1)%23;
     }
     if (buttonInput == 14){
-        //move right
-        attemptedAntPosition = userAntPosition - 1;
+        //move left
+        // % works strangely for negatives in C
+        if (userAntPosition == 0) {
+            attemptedAntPosition = 22;
+        } else {
+            attemptedAntPosition = (userAntPosition - 1);
+        }
+
     } else {
         //incorrect button input
     }
-    printf("0\n");
+
     toController <: attemptedAntPosition;
-    printf("1\n");
-    toController <: userAntPosition;
-    printf("2\n");
     toController :> moveForbidden;
-    printf("3\n");
     if (moveForbidden){
         //move forbidden
     } else {
@@ -156,26 +158,29 @@ void attackerAnt(chanend toVisualiser, chanend toController) {
 
   while (running) {
   ////////////////////////////////////////////////////////////
-  //
+      if ((moveCounter%31)==0 || (moveCounter%37)==0){
+          currentDirection = (currentDirection+1)%1;
+      }
       if (currentDirection == 0){
           //move left
-          attemptedAntPosition = attackerAntPosition - 1;
+          // % behaves strangely for negatives
+          if (attackerAntPosition == 0){
+              attemptedAntPosition = 22;
+          } else {
+              attemptedAntPosition = (attackerAntPosition - 1);
+          }
       }
-      if (currentDirection == 1){
+      else if (currentDirection == 1){
           //move right
-          attemptedAntPosition = attackerAntPosition + 1;
+          attemptedAntPosition = (attackerAntPosition + 1)%23;
       }
-      printf("4\n");
       toController <: attemptedAntPosition;
-      printf("5\n");
-      toController <: attackerAntPosition;
-      printf("6\n");
       toController :> moveForbidden;
-      printf("7\n");
       if (moveForbidden){
-          currentDirection = 0;
+          currentDirection = (currentDirection + 1)&1;
       } else {
           attackerAntPosition = attemptedAntPosition;
+          moveCounter++;
       }
   //
   /////////////////////////////////////////////////////////////
@@ -189,6 +194,7 @@ void attackerAnt(chanend toVisualiser, chanend toController) {
 //                      has moved to winning positions.
 void controller(chanend fromAttacker, chanend fromUser) {
   unsigned int lastReportedUserAntPosition = 11;      //position last reported by userAnt
+  unsigned int antDirection = 0;
   unsigned int lastReportedAttackerAntPosition = 5;   //position last reported by attackerAnt
   unsigned int attempt = 0;                           //incoming data from ants
   int gameEnded = 0;                                  //indicates if game is over
@@ -197,24 +203,22 @@ void controller(chanend fromAttacker, chanend fromUser) {
   while (!gameEnded) {
     select {
       case fromAttacker :> attempt:
-          printf("8\n");
-          fromAttacker :> lastReportedAttackerAntPosition;
           if (attempt == lastReportedUserAntPosition){
               //block
               fromAttacker <: 1;
           } else {
               //allow
+              lastReportedAttackerAntPosition = attempt;
               fromAttacker <: 0;
           }
           break;
-
       case fromUser :> attempt:
-          fromUser :> lastReportedUserAntPosition;
           if (attempt == lastReportedAttackerAntPosition){
               //block
               fromUser <: 1;
           } else {
               //allow
+              lastReportedUserAntPosition = attempt;
               fromUser <: 0;
           }
           break;
